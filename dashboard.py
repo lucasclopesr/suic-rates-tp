@@ -17,14 +17,13 @@ from panel.interact import interact
 
 # data source https://www.kaggle.com/datasets/mariotormo/complete-pokemon-dataset-updated-090420 (License CC BY-SA 4.0)
 data = pd.read_csv('master.csv')
-filtered_data = data.copy()
-print(filtered_data)
-
 
 pn.extension()
 pd.options.plotting.backend = 'holoviews'
 
-countries = list(filtered_data['country'].unique())[0:10]
+countries = list(data['country'].unique())
+years = np.array(data['year'].unique())
+print(years)
 data.interactive()
 
 import hvplot.pandas  # Enable interactive
@@ -32,15 +31,18 @@ import param
 import panel as pn
 pn.extension()
 
-check_list = pn.widgets.CheckBoxGroup(name='Checkbox Group', value=countries, options=countries)
+year_selection = pn.widgets.IntRangeSlider(name='Period to visualize', start=int(years.min()), end=int(years.max()), value=(int(years.min()), int(years.max())), step=1)
+countries_selection = pn.widgets.CheckBoxGroup(name='Countries', value=countries, options=countries)
 
 
 def filterTable(data, selection):
     data.loc[data['country'].isin(selection)]
     return data.loc[data['country'].isin(selection)]
 
-def scatter(data, selection, x_selection, y_selection):
-    return filterTable(data, selection).hvplot(
+def scatter(data, country_selection, year_selection, x_selection, y_selection):
+    filtered_data = filterTable(data, country_selection)
+    filtered_data = filtered_data[(filtered_data['year'] >= year_selection[0]) & (filtered_data['year'] <= year_selection[1])]
+    return filtered_data.hvplot(
                     x=x_selection, y=y_selection, 
                     by='country', 
                     kind='scatter', 
@@ -53,7 +55,7 @@ def scatter(data, selection, x_selection, y_selection):
 # w = a(data, countries)
 x_scatter = pn.widgets.Select(name="X", options=list(data.columns))
 y_scatter = pn.widgets.Select(name="Y", options=list(data.columns))
-scatter_data = pn.bind(scatter, data, check_list, x_scatter, y_scatter)  
+scatter_data = pn.bind(scatter, data, countries_selection, year_selection, x_scatter, y_scatter)  
 
 
 sidebar=[
@@ -62,7 +64,8 @@ sidebar=[
     pn.pane.JPG('thimo-pedersen-dip9IIwUK6w-unsplash.jpg', sizing_mode='scale_both'),
     pn.pane.Markdown('[Photo by Thimo Pedersen on Unsplash](https://unsplash.com/photos/dip9IIwUK6w)'),
     pn.pane.Markdown('## Filter by Country'),
-    check_list
+    countries_selection,
+    year_selection
 ]
 
 main = [
