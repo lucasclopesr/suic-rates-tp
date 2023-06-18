@@ -13,36 +13,42 @@ from panel.template import DarkTheme
 import matplotlib.pyplot as plt
 from panel.interact import interact
 
+pn.extension()
 
 
-# data source https://www.kaggle.com/datasets/mariotormo/complete-pokemon-dataset-updated-090420 (License CC BY-SA 4.0)
-data = pd.read_csv('master.csv')
+# Preprocessing data
+data = pd.read_csv('master.csv', thousands=',')
+data['suicides_no'] = pd.to_numeric(data['suicides_no'])
+data[' gdp_for_year ($) '] = pd.to_numeric(data[' gdp_for_year ($) '])
 
+data['age'] = data['age'].map(lambda x: x.replace("years", ""))
+data['age'] = data['age'].map(lambda x: x.replace("5-14", "05-14"))
 pn.extension()
 pd.options.plotting.backend = 'holoviews'
 
-countries = list(data['country'].unique())
-years = np.array(data['year'].unique())
-print(years)
-data.interactive()
+countries = list(data['country'].unique())[0:5]
+ages = list(data['age'].unique())
+ages.sort()
 
-import hvplot.pandas  # Enable interactive
-import param
-import panel as pn
-pn.extension()
+print(len(countries))
+# for c in countries:
+#     countries_color[c] = 
+years = np.array(data['year'].unique())
+
 
 year_selection = pn.widgets.IntRangeSlider(name='Period to visualize', start=int(years.min()), end=int(years.max()), value=(int(years.min()), int(years.max())), step=1)
 countries_selection = pn.widgets.CheckBoxGroup(name='Countries', value=countries, options=countries)
+group_selection = pn.widgets.CheckBoxGroup(name='Group', value=['age', 'sex'], options=['age', 'sex'])
+age_selection = pn.widgets.CheckBoxGroup(name='Group', value=ages, options=ages)
 
 
 def filterTable(data, selection):
-    data.loc[data['country'].isin(selection)]
     return data.loc[data['country'].isin(selection)]
 
 def scatter(data, country_selection, year_selection, x_selection, y_selection):
     filtered_data = filterTable(data, country_selection)
     filtered_data = filtered_data[(filtered_data['year'] >= year_selection[0]) & (filtered_data['year'] <= year_selection[1])]
-    return filtered_data.hvplot(
+    return filtered_data.sort_values(by=[x_selection], ascending=True).hvplot(
                     x=x_selection, y=y_selection, 
                     by='country', 
                     kind='scatter', 
@@ -52,11 +58,43 @@ def scatter(data, country_selection, year_selection, x_selection, y_selection):
                     grid=True,
                     )
 
+def sex_plot(data, country_selection, year_selection, group_by, age_selection):
+    gp = group_by + ["year"]
+    filtered_data = filterTable(data, country_selection)
+    filtered_data = filtered_data[(filtered_data['year'] >= year_selection[0]) & (filtered_data['year'] <= year_selection[1])]
+    filtered_data = filtered_data.loc[data['age'].isin(age_selection)]
+    filtered_data = filtered_data.groupby(gp, as_index = False)["suicides_no"].mean()
+    return filtered_data.hvplot(
+                    x='year', 
+                    y=['suicides_no'],
+                    by=group_by, 
+                    kind='line', 
+                    # hover_cols=['suicide_no', 'gdp_per_capita ($)', 'year'], 
+                    title='Relationship between Weight (kg) and Height (m), by Type',
+                    width=700, height=500,
+                    grid=True,
+                    )
+
+def ranking_plot(data, country_selection, year_selection):
+    filtered_data = filterTable(data, country_selection).interpolate(method='linear')
+    filtered_data = filtered_data[(filtered_data['year'] >= year_selection[0]) & (filtered_data['year'] <= year_selection[1])]
+    filtered_data = filtered_data.groupby(["year", 'sex'])['suicides_no'].sum()
+    return filtered_data.hvplot(
+                    x='year', 
+                    y=['suicides_no'],
+                    by=['sex'], 
+                    kind='line', 
+                    # hover_cols=['suicide_no', 'gdp_per_capita ($)', 'year'], 
+                    title='Relationship between Weight (kg) and Height (m), by Type',
+                    width=700, height=500,
+                    grid=True,
+                    )
+
 # w = a(data, countries)
 x_scatter = pn.widgets.Select(name="X", options=list(data.columns))
 y_scatter = pn.widgets.Select(name="Y", options=list(data.columns))
 scatter_data = pn.bind(scatter, data, countries_selection, year_selection, x_scatter, y_scatter)  
-
+line_data = pn.bind(sex_plot, data, countries_selection, year_selection, group_selection, age_selection)  
 
 sidebar=[
     pn.pane.Markdown('# About the project'),
@@ -69,7 +107,22 @@ sidebar=[
 ]
 
 main = [
-    pn.Row(scatter_data, pn.Column(x_scatter, y_scatter))
+    pn.Row(
+            scatter_data, 
+            pn.Column(
+                    x_scatter,
+                    y_scatter
+                    )
+            ),
+    pn.Row(
+            line_data, 
+            pn.Column(
+                    pn.pane.Markdown('Groups'),
+                    group_selection,
+                    pn.pane.Markdown('Age interval'),
+                    age_selection
+                    )
+            )
 ]
 template = pn.template.FastListTemplate(theme=DarkTheme,
     sidebar=sidebar,
