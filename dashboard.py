@@ -23,16 +23,14 @@ data[' gdp_for_year ($) '] = pd.to_numeric(data[' gdp_for_year ($) '])
 
 data['age'] = data['age'].map(lambda x: x.replace("years", ""))
 data['age'] = data['age'].map(lambda x: x.replace("5-14", "05-14"))
+print(data.columns)
 pn.extension()
 pd.options.plotting.backend = 'holoviews'
 
-countries = list(data['country'].unique())[0:5]
+countries = list(data['country'].unique())
 ages = list(data['age'].unique())
 ages.sort()
 
-print(len(countries))
-# for c in countries:
-#     countries_color[c] = 
 years = np.array(data['year'].unique())
 
 
@@ -41,6 +39,7 @@ countries_selection = pn.widgets.CheckBoxGroup(name='Countries', value=countries
 group_selection = pn.widgets.CheckBoxGroup(name='Group', value=['age', 'sex'], options=['age', 'sex'])
 age_selection = pn.widgets.CheckBoxGroup(name='Group', value=ages, options=ages)
 
+order_selection = pn.widgets.Select(name='Sort By', value='suicides/100k pop', options=['suicides_no', 'suicides/100k pop', 'population', 'HDI for year', ' gdp_for_year ($) ', 'gdp_per_capita ($)'])
 
 def filterTable(data, selection):
     return data.loc[data['country'].isin(selection)]
@@ -75,26 +74,25 @@ def sex_plot(data, country_selection, year_selection, group_by, age_selection):
                     grid=True,
                     )
 
-def ranking_plot(data, country_selection, year_selection):
-    filtered_data = filterTable(data, country_selection).interpolate(method='linear')
+def ranking_plot(data, country_selection, year_selection, order_selection):
+    filtered_data = filterTable(data, country_selection)
     filtered_data = filtered_data[(filtered_data['year'] >= year_selection[0]) & (filtered_data['year'] <= year_selection[1])]
-    filtered_data = filtered_data.groupby(["year", 'sex'])['suicides_no'].sum()
+    filtered_data = filtered_data.groupby(['country'], as_index = False).mean(numeric_only=True).sort_values(by=order_selection, ascending=True)
     return filtered_data.hvplot(
-                    x='year', 
-                    y=['suicides_no'],
-                    by=['sex'], 
-                    kind='line', 
-                    # hover_cols=['suicide_no', 'gdp_per_capita ($)', 'year'], 
+                    'country', 
+                    'suicides/100k pop',
+                    kind='barh', 
                     title='Relationship between Weight (kg) and Height (m), by Type',
-                    width=700, height=500,
-                    grid=True,
+                    width=700, height=500, color="suicides/100k pop", colorbar=True, clabel="Weight", cmap="bmy"
                     )
 
 # w = a(data, countries)
 x_scatter = pn.widgets.Select(name="X", options=list(data.columns))
 y_scatter = pn.widgets.Select(name="Y", options=list(data.columns))
+
 scatter_data = pn.bind(scatter, data, countries_selection, year_selection, x_scatter, y_scatter)  
 line_data = pn.bind(sex_plot, data, countries_selection, year_selection, group_selection, age_selection)  
+ranking_data = pn.bind(ranking_plot, data, countries_selection, year_selection, order_selection)  
 
 sidebar=[
     pn.pane.Markdown('# About the project'),
@@ -102,8 +100,8 @@ sidebar=[
     pn.pane.JPG('thimo-pedersen-dip9IIwUK6w-unsplash.jpg', sizing_mode='scale_both'),
     pn.pane.Markdown('[Photo by Thimo Pedersen on Unsplash](https://unsplash.com/photos/dip9IIwUK6w)'),
     pn.pane.Markdown('## Filter by Country'),
-    countries_selection,
-    year_selection
+    year_selection,
+    countries_selection
 ]
 
 main = [
@@ -121,6 +119,13 @@ main = [
                     group_selection,
                     pn.pane.Markdown('Age interval'),
                     age_selection
+                    )
+            ),
+    pn.Row(
+            ranking_data, 
+            pn.Column(
+                    pn.pane.Markdown('Sort By'),
+                    order_selection,
                     )
             )
 ]
