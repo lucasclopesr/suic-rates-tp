@@ -34,11 +34,11 @@ ages.sort()
 years = np.array(data['year'].unique())
 
 
-year_selection = pn.widgets.IntRangeSlider(name='Period to visualize', start=int(years.min()), end=int(years.max()), value=(int(years.min()), int(years.max())), step=1)
-countries_selection = pn.widgets.MultiSelect(name='MultiSelect', value=countries[0:5],options=countries, size=20)
+year_selection = pn.widgets.IntRangeSlider(name='Period to visualize: ', start=int(years.min()), end=int(years.max()), value=(int(years.min()), int(years.max())), step=1)
+countries_selection = pn.widgets.MultiSelect(value=countries[0:5],options=countries, size=20)
 #pn.widgets.CheckBoxGroup(name='Countries', value=countries, options=countries)
-group_selection = pn.widgets.CheckBoxGroup(name='Group', value=['age', 'sex'], options=['age', 'sex'])
-age_selection = pn.widgets.CheckBoxGroup(name='Group', value=ages, options=ages)
+group_selection = pn.widgets.CheckBoxGroup(value=['age', 'sex'], options=['age', 'sex'])
+age_selection = pn.widgets.CheckBoxGroup(value=ages, options=ages)
 
 order_selection = pn.widgets.Select(name='Sort By', value='suicides/100k pop', options=['suicides_no', 'suicides/100k pop', 'population', 'HDI for year', ' gdp_for_year ($) ', 'gdp_per_capita ($)'])
 
@@ -124,11 +124,16 @@ suicide_no_data = pn.bind(suicide_no_plot, data, countries_selection, year_selec
 
 sidebar=[
     pn.pane.Markdown('# About the project'),
-    pn.pane.Markdown('#### This project uses data available on [Kaggle]()'),
+    pn.pane.Markdown('#### This project uses data available on [Kaggle](https://www.kaggle.com/datasets/szamil/who-suicide-statistics) to create interactive visualizations.'),
     pn.pane.Markdown('## Filter by Time period'),
     year_selection,
     pn.pane.Markdown('## Filter by Country'),
-    countries_selection
+    countries_selection,
+    pn.pane.Markdown('## Authors:'),
+    pn.pane.Markdown('Ana Carolina Gonçalves'),
+    pn.pane.Markdown('Lucas Caetano Lopes Rodrigues'),
+    pn.pane.Markdown('Tiago Negrisoli de Oliveira'),
+    pn.pane.Markdown('Thiago Morais Araújo')
 ]
 
 main = [
