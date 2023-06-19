@@ -35,7 +35,8 @@ years = np.array(data['year'].unique())
 
 
 year_selection = pn.widgets.IntRangeSlider(name='Period to visualize', start=int(years.min()), end=int(years.max()), value=(int(years.min()), int(years.max())), step=1)
-countries_selection = pn.widgets.CheckBoxGroup(name='Countries', value=countries, options=countries)
+countries_selection = pn.widgets.MultiSelect(name='MultiSelect', value=countries[0:5],options=countries, size=20)
+#pn.widgets.CheckBoxGroup(name='Countries', value=countries, options=countries)
 group_selection = pn.widgets.CheckBoxGroup(name='Group', value=['age', 'sex'], options=['age', 'sex'])
 age_selection = pn.widgets.CheckBoxGroup(name='Group', value=ages, options=ages)
 
@@ -52,9 +53,8 @@ def scatter(data, country_selection, year_selection, x_selection, y_selection):
                     by='country', 
                     kind='scatter', 
                     hover_cols=['country', 'suicide_no', 'gdp_per_capita ($)', 'year'], 
-                    title='Relationship between Weight (kg) and Height (m), by Type',
-                    width=700, height=500,
-                    grid=True,
+                    title='Correlation', facecolors='none', sizing_mode='fixed'
+                    # grid=True,
                     )
 
 def sex_plot(data, country_selection, year_selection, group_by, age_selection):
@@ -69,8 +69,7 @@ def sex_plot(data, country_selection, year_selection, group_by, age_selection):
                     by=group_by, 
                     kind='line', 
                     # hover_cols=['suicide_no', 'gdp_per_capita ($)', 'year'], 
-                    title='Relationship between Weight (kg) and Height (m), by Type',
-                    width=700, height=500,
+                    title='Suicide cases for groups by sex and age',
                     grid=True,
                     )
 
@@ -82,9 +81,35 @@ def ranking_plot(data, country_selection, year_selection, order_selection):
                     'country', 
                     'suicides/100k pop',
                     kind='barh', 
-                    title='Relationship between Weight (kg) and Height (m), by Type',
-                    width=700, height=500, color="suicides/100k pop", colorbar=True, clabel="Weight", cmap="bmy"
+                    title='Ranking of suicide cases per 100k population',
+                    color="suicides/100k pop", colorbar=True, clabel="Weight", cmap="bmy"
                     )
+
+def gdp_plot(data, country_selection, year_selection):
+    filtered_data = filterTable(data, country_selection)
+    filtered_data = filtered_data[(filtered_data['year'] >= year_selection[0]) & (filtered_data['year'] <= year_selection[1])]
+    filtered_data = filtered_data.groupby(["year", "country"], as_index = False).mean(numeric_only=True)
+    return filtered_data.hvplot(
+                kind='line',
+                x="year",
+                y="gdp_per_capita ($)",
+                by='country',
+                title='GDP Per Capita throughout the years', 
+                rot=45
+                )
+
+def suicide_no_plot(data, country_selection, year_selection):
+    filtered_data = filterTable(data, country_selection)
+    filtered_data = filtered_data[(filtered_data['year'] >= year_selection[0]) & (filtered_data['year'] <= year_selection[1])]
+    filtered_data = filtered_data.groupby(["year", "country"], as_index = False).mean(numeric_only=True)
+    return filtered_data.hvplot(
+                kind='line',
+                x="year",
+                y="suicides/100k pop",
+                by='country',
+                title='Suicides/100k throughout the years', 
+                rot=45
+                )
 
 # w = a(data, countries)
 x_scatter = pn.widgets.Select(name="X", options=list(data.columns))
@@ -94,48 +119,52 @@ scatter_data = pn.bind(scatter, data, countries_selection, year_selection, x_sca
 line_data = pn.bind(sex_plot, data, countries_selection, year_selection, group_selection, age_selection)  
 ranking_data = pn.bind(ranking_plot, data, countries_selection, year_selection, order_selection)  
 
+gdp_data = pn.bind(gdp_plot, data, countries_selection, year_selection)  
+suicide_no_data = pn.bind(suicide_no_plot, data, countries_selection, year_selection)  
+
 sidebar=[
     pn.pane.Markdown('# About the project'),
-    pn.pane.Markdown('#### This project uses data available on [Kaggle](https://www.kaggle.com/datasets/mariotormo/complete-pokemon-dataset-updated-090420) and on [Wikipedia](https://en.wikipedia.org/wiki/Pok%C3%A9mon_(video_game_series)#Reception) about Pokémons to explore different types of visualizations using HoloViz tools: [Panel](https://panel.holoviz.org/) [hvPlot](https://hvplot.holoviz.org/)'),
-    pn.pane.JPG('thimo-pedersen-dip9IIwUK6w-unsplash.jpg', sizing_mode='scale_both'),
-    pn.pane.Markdown('[Photo by Thimo Pedersen on Unsplash](https://unsplash.com/photos/dip9IIwUK6w)'),
-    pn.pane.Markdown('## Filter by Country'),
+    pn.pane.Markdown('#### This project uses data available on [Kaggle]()'),
+    pn.pane.Markdown('## Filter by Time period'),
     year_selection,
+    pn.pane.Markdown('## Filter by Country'),
     countries_selection
 ]
 
 main = [
     pn.Row(
-            scatter_data, 
             pn.Column(
-                    x_scatter,
-                    y_scatter
+                    pn.Row(scatter_data), 
+                    pn.Row(x_scatter, y_scatter),
+                    # width=250, height=250, align='center'
+                    ),
+            pn.Column(
+                    pn.Row(line_data), 
+                    pn.Row(
+                            pn.pane.Markdown('Groups'),
+                            group_selection, 
+                            pn.pane.Markdown('Age interval'),
+                            age_selection
+                            ), 
+                    # width=250, height=250, align='center'
                     )
+            # , width=600, height=600
             ),
     pn.Row(
-            line_data, 
-            pn.Column(
-                    pn.pane.Markdown('Groups'),
-                    group_selection,
-                    pn.pane.Markdown('Age interval'),
-                    age_selection
-                    )
-            ),
+            pn.Row(pn.Column(gdp_data), pn.Column(suicide_no_data))
+        ),
     pn.Row(
             ranking_data, 
-            pn.Column(
-                    pn.pane.Markdown('Sort By'),
-                    order_selection,
-                    )
+            pn.Column(order_selection)
             )
 ]
 template = pn.template.FastListTemplate(theme=DarkTheme,
     sidebar=sidebar,
     main=main,
-    title = 'Pokémon Interactive Dashboard',
+    title = 'Suicide cases Interactive Dashboard',
     accent_base_color='#d78929',
     header_background='#d78929',
-    sidebar_footer='<br><br><a href="https://github.com/pcmaldonado/PokemonDashboard">GitHub Repository</a>',       
+    sidebar_footer='<br><br><a href="https://github.com/lucasclopesr/suic-rates-tp">GitHub Repository</a>',       
     main_max_width='100%'                                        
 )
 
